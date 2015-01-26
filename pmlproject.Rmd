@@ -1,0 +1,68 @@
+Practical Machine Learning Course Project
+========================================================
+
+Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: (http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset). 
+
+Data:
+
+```{r, cache=TRUE}
+temp <- tempfile()
+download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",temp)
+training <- read.table(temp,sep=",", header= T,na.strings=c("NA","#DIV/0!",""))
+unlink(temp)
+
+temp1 <- tempfile()
+download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",temp1)
+testing <- read.table(temp1,sep=",", header= T,na.strings=c("NA","#DIV/0!",""))
+unlink(temp1)
+```
+
+Variable subset selection: 
+
+A number of variables have a large number of missing values and such variables may not have any predictive power. So we can remove these varables from the training file. Also the variables containing user names, timestamps and window of measurement can be dropped.
+
+```{r, cache = TRUE}
+train.wo.na<-training[,colSums(is.na(training)) == 0]
+summary(train.wo.na)
+
+drop <- names(train.wo.na[grep(c("timestamp|user|X|window"),names(train.wo.na))])
+trainsub <- train.wo.na[, ! colnames(train.wo.na) %in% drop]
+summary(trainsub)
+```
+
+Building a Predictive Model:
+
+Random forests have considerably high accuracy in prediction type data mining problems and hence it was chosen to build the predictive model using the caret package. to get an estimate of the out of sample error rate, the training sample was then randomly divided into a training sub sample and test sub sample for modeling purposes.
+
+```{r, cache=TRUE}
+library(caret)
+subset <- createDataPartition(y=trainsub$classe, p=0.75, list=FALSE)
+trainsubmodel <- trainsub[subset, ] 
+testsubmodel<- trainsub[-subset, ]
+
+modfit <- train(classe ~.,data=trainsubmodel, method="rf")
+modfit
+```
+Out of sample error rate:
+
+The accuracy for cross validation using mtry =2 is 0.9898, That is the error rate is 0.0102
+
+The out of bag error rate for the final model is,
+```{r,cache=TRUE}
+modfit$final
+```
+The model performance on the testsubmodel data is
+```{r, cache=TRUE}
+predm <- predict(modfit,testsubmodel)
+confusionMatrix(predm,testsubmodel$classe)
+```
+Prediction for the actual testing data for the project:
+```{r, cache=TRUE}
+pred <- predict(modfit,testing)
+pred
+```
+
+
+
